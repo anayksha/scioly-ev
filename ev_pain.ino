@@ -36,7 +36,14 @@ RobojaxBTS7960 motor(R_EN, RPWM, R_IS, L_EN, LPWM, L_IS, debug);
 
 //ENCODER VARIABLES------------------------------------
 volatile unsigned long counter = 0;  //This variable will increase or decrease depending on the rotation of encoder
-volatile unsigned long temp;
+volatile uint8_t encState;
+
+const int8_t encArr[16] = {
+  0, -1,  1,  0,
+  1,  0,  0, -1,
+ -1,  0,  0,  1,
+  0,  1, -1,  0
+};
 
 
 //MOVEMENT VARIABLES------------------------------------
@@ -48,7 +55,7 @@ double wheelDiameter = 6.0325;                    //Wheel Diameter is 2.875in = 
 double wheelCircumfrence = wheelDiameter * 3.14159;
 double slowDownDistance;    //Distance that initial slowing is initiated
 double snailDistance;       //Distance that secondary slowing is initiated
-double pulsesPerRev = 120;  //Encoder PPR
+double CPR = 480;  //Encoder CPR
 
 bool SBpressed = false;
 bool moved = false;
@@ -85,25 +92,22 @@ void setup() {
 
 
   //BUTTON SETUP----------------------------------------------------
-  pinMode(StartButtonPin, INPUT);
-  digitalWrite(StartButtonPin, HIGH);  //enable pullups to make pin high
+  pinMode(StartButtonPin, INPUT_PULLUP);
 
   Serial.println("Button Setup Complete");
 
 
   //ENCODER SETUP----------------------------------------------------
-  pinMode(ENCA, INPUT);  // set pin to input
-  pinMode(ENCB, INPUT);  // set pin to input
+  pinMode(ENCA, INPUT_PULLUP);  // set pin to input w/ pullup resistors
+  pinMode(ENCB, INPUT_PULLUP);  // set pin to input w/ pullup resistors
 
-  digitalWrite(ENCA, HIGH);  // turn on pullup resistors
-  digitalWrite(ENCB, HIGH);  // turn on pullup resistors
+  //setting the current encoder state
+  encState = (digitalRead(ENCA) << 1) | digitalRead(ENCB);
 
   //Setting up interrupt
-  //A rising pulse from encodenren activated ai0(). AttachInterrupt 0 is DigitalPin nr 2 on most Arduino.
-  attachInterrupt(0, ai0, RISING);
-
-  //B rising pulse from encodenren activated ai1(). AttachInterrupt 1 is DigitalPin nr 3 on most Arduino.
-  attachInterrupt(1, ai1, RISING);
+  //Activates whenever theres a change in either of the encoder pins
+  attachInterrupt(digitalPinToInterrupt(ENCA), encInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ENCB), encInterrupt, CHANGE);
 
   Serial.println("Encoder Setup Complete");
 
@@ -269,30 +273,21 @@ void loop() {
 }
 
 
-void ai0() {
-  // ai0 is activated if DigitalPin nr 2 is going from LOW to HIGH
-  // Check pin 3 to determine the direction
-  if (digitalRead(3) == LOW) {
-    counter++;
-  } else {
-    counter--;
-  }
-}
+void encInterrupt() {
+  uint8_t A = digitalRead(ENCA);
+  uint8_t B = digitalRead(ENCB);
+  
+  uint8_t newEncState = (A << 1) | B;
+  uint8_t index = (encState << 2) | newEncState;
 
-void ai1() {
-  // ai0 is activated if DigitalPin nr 3 is going from LOW to HIGH
-  // Check with pin 2 to determine the direction
-  if (digitalRead(2) == LOW) {
-    counter--;
-  } else {
-    counter++;
-  }
+  counter += encArr[index];
+
+  encState = newEncState;
 }
 
 double getEncoderValue(double TD, double WD) {
-  double PPR = 120;
   double WheelCircumfrence = 3.14159 * WD;
-  double tgtENCval = (TD / WheelCircumfrence) * PPR;
+  double tgtENCval = (TD / WheelCircumfrence) * CPR;
   return tgtENCval;
 }
 
