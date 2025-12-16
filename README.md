@@ -14,5 +14,5 @@ later i plan to create a separate branch with custom code and merge it with main
 
 hopefully I will implement a system like unphayzed's where u can set target distance and target time in both of the codes *eventually*
 
-**Updated on 17:55 12/16/2026**<br>
+**Updated on 18:00 12/16/2025**<br>
 *also ik this is not how to make a readme idc*
