@@ -24,8 +24,10 @@ const int CPR = 480;
 const double wheelDia = 6.0325; // in cm
 const double wheelCircuference = wheelDia * 3.14159;
 
-const double targetDist = 10.0;
-const double targetTime = 12.0;
+const double targetD = 10.0;
+const double targetT = 12.0;
+
+const double accel = 2;
 
 // PID pain
 const double K_p_pos = 0;
@@ -45,5 +47,13 @@ void setup() {
 }
 
 void loop() {
+
+}
+
+double targetPos(double t) {
+
+}
+
+double targetVel(double t) {
 
 }
