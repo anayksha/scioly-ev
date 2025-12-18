@@ -24,12 +24,16 @@
 const int CPR = 480;
 
 const double wheelDia = 6.0325; // in cm
-const double wheelCircuference = wheelDia * 3.14159;
+const double wheelCircumference = wheelDia * 3.14159;
 
-const double targetD = 10.0;
-const double targetT = 12.0;
+const double targetDistInM = 10.0;
+const double targetTimeInS = 12.0;
 
-const double accel = 2;
+// target dist in counts
+const double targetD = targetDistInM * 1000 / wheelCircumference * CPR;
+
+const double accelInM = 2;
+const double accel = accelInM * 1000 / wheelCircumference * CPR; // in counts per s squared
 
 // PID pain
 const double K_p_pos = 0;
@@ -46,28 +50,38 @@ const long velPIDInterval = 2000; // in microseconds
 unsigned long lastPosPIDTime = 0; // in microseconds
 unsigned long lastVelPIDTime = 0; // in microseconds
 
-bool running; // run the PID part of the loop and dont check for other input
+bool running = false; // run the PID part of the loop and dont check for other input
 
 Encoder motorEnc(ENC_A, ENC_B);
 
 BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
 // class Trajectory;
-Trajectory* traj = nullptr; // this is bad and needs to be changed
+Trajectory* traj = nullptr; // idk what pointers are so idk if i should be using them bc memory leaks or some shi
 
 void setup() {
   Serial.begin(9600);
+  Serial.println("------------Beginning Setup------------");
 
   // reset encoder value
   motorEnc.write(0);
+  Serial.println("encoder configured");
 
   // configure motor
   motor.Enable();
+  Serial.println("motor configured");
 
   // configure start button
   pinMode(START_BTN_PIN, INPUT_PULLUP);
+  Serial.println("start button configured");
 
+  // reset vars
   running = false;
+  lastPosPIDTime = 0;
+  lastVelPIDTime = 0;
+  Serial.println("variables reset");
+
+  Serial.println("------------Setup Complete------------");
 }
 
 void loop() {
@@ -83,7 +97,7 @@ void loop() {
       lastVelPIDTime = 0;
 
       delete traj;
-      traj = new Trajectory();
+      traj = new Trajectory(targetD, targetT);
     }
   } else {
     // might wanna move this to some separate function
@@ -99,6 +113,10 @@ void loop() {
       // vel loop
 
       lastVelPIDTime = time;
+    }
+
+    if(motorEnc.read() >= targetD) {
+
     }
   }
 }
