@@ -1,7 +1,9 @@
+#define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
-// #include <RobojaxBTS7960.h>
 #include <BTS7960.h>
 #include <PID_v1.h>
+
+#include "trajectory.h"
 
 // rotary encoder pins
 #define ENC_A 2
@@ -33,27 +35,70 @@ const double accel = 2;
 const double K_p_pos = 0;
 const double K_i_pos = 0;
 const double K_d_pos = 0;
+const long posPIDInterval = 15000; // in microseconds
 
 const double K_p_vel = 0;
 const double K_i_vel = 0;
 const double K_d_vel = 0;
+const long velPIDInterval = 2000; // in microseconds
+
+// random shi
+unsigned long lastPosPIDTime = 0; // in microseconds
+unsigned long lastVelPIDTime = 0; // in microseconds
+
+bool running; // run the PID part of the loop and dont check for other input
+
+Encoder motorEnc(ENC_A, ENC_B);
 
 BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
+
+// class Trajectory;
+Trajectory* traj = nullptr; // this is bad and needs to be changed
 
 void setup() {
   Serial.begin(9600);
 
+  // reset encoder value
+  motorEnc.write(0);
+
+  // configure motor
   motor.Enable();
+
+  // configure start button
+  pinMode(START_BTN_PIN, INPUT_PULLUP);
+
+  running = false;
 }
 
 void loop() {
+  if(!running){
+    delay(10);
 
-}
+    if(digitalRead(START_BTN_PIN) == LOW) {
+      running = true;
+      motorEnc.write(0);
+      motor.Enable();
 
-double targetPos(double t) {
+      lastPosPIDTime = 0;
+      lastVelPIDTime = 0;
 
-}
+      delete traj;
+      traj = new Trajectory();
+    }
+  } else {
+    // might wanna move this to some separate function
+    unsigned long time = micros();
 
-double targetVel(double t) {
+    if(time - lastPosPIDTime >= posPIDInterval) {
+      // pos loop
 
+      lastPosPIDTime = time;
+    }
+
+    if(time - lastVelPIDTime >= velPIDInterval) {
+      // vel loop
+
+      lastVelPIDTime = time;
+    }
+  }
 }
