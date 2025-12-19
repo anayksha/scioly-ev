@@ -1,6 +1,6 @@
 #include "trajectory.h"
 
-Trajectory::Trajectory(double targetD, double targetT) {
+Trajectory::Trajectory(long targetD, long targetT) {
   this->targetD = targetD;
   this->targetT = targetT; 
 
@@ -13,8 +13,6 @@ Trajectory::Trajectory(double targetD, double targetT) {
 }
 
 double Trajectory::getTargetVel(double t) {
-  t /= 1000000;
-
   if(t < t_a) {
     return accel * t;
   }
@@ -27,9 +25,7 @@ double Trajectory::getTargetVel(double t) {
   return 0;
 }
 
-double Trajectory::getTargetPos(double t) {
-  t /= 1000000;
-
+long Trajectory::getTargetPos(double t) {
   if(t < t_a) {
     return 0.5 * accel * pow(t, 2);
   }

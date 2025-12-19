@@ -2,8 +2,8 @@
 
 Hello so this is gonna be kinda pain honestly 🥲👍
 
-Basically this ev will use cascading PID with an outer position loop and
-inner velocity loop to precisely control the motor the right distance in the right time.
+Basically this ev will use cascading PID with an outer position loop and inner
+velocity loop to precisely control the motor to move the right distance in the right time.
 
 The path that the PID will try to match up with is a trapezoidal velocity-time profile,
 with a constant acceleration period, a cruise period, and a constant deceleration period.
@@ -13,4 +13,4 @@ The mathematical setup for the calculations can be found in
 result of the derivation can be viewed and verified
 [here](https://www.desmos.com/calculator/avxj6yh4fy) on desmos.
 
-*i am not showing the derivation btw that is too much work*
+*i am not showing the derivation itself btw that is too much work*

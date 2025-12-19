@@ -1,3 +1,10 @@
+/*
+hehe I love PID trust
+
+also once the arduino is on for like 35 min the ev will prob start tweaking the shit out bc
+i think micros() overflows and will probably have to restart arduino
+*/
+
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
 #include <BTS7960.h>
@@ -9,55 +16,66 @@
 #define ENC_A 2
 #define ENC_B 3
 
-// motor controller pins TODO: fix numebers
-#define R_EN -1
-#define L_EN -1
-#define R_PWM -1
-#define L_PWM -1
+// motor controller pins
+#define R_EN 11
+#define L_EN 8
+#define R_PWM 10
+#define L_PWM 9
 
 // button pins
-#define START_BTN_PIN -1
+#define START_BTN_PIN 6
 
 // TODO: add LCD and rotary encoder and stuff
 
 // movement vars?
-const int CPR = 480;
+const unsigned int CPR = 480;
 
-const double wheelDia = 6.0325; // in cm
+const double wheelDia = 6.0325;  // in cm
 const double wheelCircumference = wheelDia * 3.14159;
 
 const double targetDistInM = 10.0;
-const double targetTimeInS = 12.0;
+const unsigned long targetD = round(targetDistInM * 100 / wheelCircumference * CPR);  // target dist in counts
+const double targetT = 12.0;
 
-// target dist in counts
-const double targetD = targetDistInM * 1000 / wheelCircumference * CPR;
-
-const double accelInM = 2;
-const double accel = accelInM * 1000 / wheelCircumference * CPR; // in counts per s squared
+const double accelInM = 1.2; // m/s^2
+const double accel = accelInM * 100 / wheelCircumference * CPR;  // in counts per s squared
+const double maxSpdInM = 1.5; // m/s
+const double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;
 
 // PID pain
-const double K_p_pos = 0;
-const double K_i_pos = 0;
-const double K_d_pos = 0;
-const long posPIDInterval = 15000; // in microseconds
+const double Kp_pos = 0;
+const double Ki_pos = 0;
+const double Kd_pos = 0;
+const unsigned int posPIDInterval = 15000;  // in microseconds
 
-const double K_p_vel = 0;
-const double K_i_vel = 0;
-const double K_d_vel = 0;
-const long velPIDInterval = 2000; // in microseconds
+const double Kp_vel = 0;
+const double Ki_vel = 0;
+const double Kd_vel = 0;
+const unsigned int velPIDInterval = 2000;  // in microseconds
 
-// random shi
-unsigned long lastPosPIDTime = 0; // in microseconds
-unsigned long lastVelPIDTime = 0; // in microseconds
+double posPIDIn, posPIDOut, posPIDSetpt;
+double velPIDIn, velPIDOut, velPIDSetpt;
 
-bool running = false; // run the PID part of the loop and dont check for other input
+// random timing/constrol shi
+// I set the last times to negative numbers to make sure the first PID loop that runs triggers
+// both pos and vel loops, and to make sure it runs right after start button pressed 
+long lastPosPIDTime = -2 * posPIDInterval;  // in microseconds
+long lastVelPIDTime = -2 * velPIDInterval;  // in microseconds
+unsigned long startTime;
 
+long lastEncVal = 0;
+
+bool running = false;  // run the PID part of the loop and dont check for other input
+
+// objects for literally everything
 Encoder motorEnc(ENC_A, ENC_B);
 
 BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
-// class Trajectory;
-Trajectory* traj = nullptr; // idk what pointers are so idk if i should be using them bc memory leaks or some shi
+Trajectory* traj = nullptr;  // idk what pointers are so idk if i should be using them bc memory leaks or some shi
+
+PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
+PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
 
 void setup() {
   Serial.begin(9600);
@@ -75,17 +93,25 @@ void setup() {
   pinMode(START_BTN_PIN, INPUT_PULLUP);
   Serial.println("start button configured");
 
+  // configure PID
+  posPID.SetOutputLimits(-maxSpd, maxSpd);
+  velPID.SetOutputLimits(-255, 255);
+  posPID.SetMode(AUTOMATIC);
+  velPID.SetMode(AUTOMATIC);
+  Serial.println("PID configured");
+
   // reset vars
   running = false;
-  lastPosPIDTime = 0;
-  lastVelPIDTime = 0;
+  lastPosPIDTime = -2 * posPIDInterval;
+  lastVelPIDTime = -2 * velPIDInterval;
+  lastEncVal = 0;
   Serial.println("variables reset");
 
   Serial.println("------------Setup Complete------------");
 }
 
 void loop() {
-  if(!running){
+  if(!running) {
     delay(10);
 
     if(digitalRead(START_BTN_PIN) == LOW) {
@@ -93,30 +119,73 @@ void loop() {
       motorEnc.write(0);
       motor.Enable();
 
-      lastPosPIDTime = 0;
-      lastVelPIDTime = 0;
+      lastEncVal = 0;
+      lastPosPIDTime = -2 * posPIDInterval;
+      lastVelPIDTime = -2 * velPIDInterval;
 
       delete traj;
       traj = new Trajectory(targetD, targetT);
+
+      startTime = micros();
     }
   } else {
-    // might wanna move this to some separate function
-    unsigned long time = micros();
+    // might wanna move all this to some separate function
+    unsigned long runTime = micros() - startTime;
 
-    if(time - lastPosPIDTime >= posPIDInterval) {
-      // pos loop
+    // pos loop
+    // might want to check if lastPos(& Vel)PIDTime is 0
+    if(runTime - lastPosPIDTime >= posPIDInterval) {
+      lastPosPIDTime = runTime;
 
-      lastPosPIDTime = time;
+      posPIDSetpt = traj->getTargetPos(runTime / 1000000.0);
+      posPIDIn = motorEnc.read();
+
+      posPID.Compute(); // sets posPIDOut in-place btw
     }
 
-    if(time - lastVelPIDTime >= velPIDInterval) {
-      // vel loop
+    // vel loop
+    if(runTime - lastVelPIDTime >= velPIDInterval) {
+      long currEncVal = motorEnc.read();
+      velPIDIn = (currEncVal - lastEncVal) / (runTime - lastVelPIDTime); // calc curr velocity as fast as possible
+      lastEncVal = currEncVal;
 
-      lastVelPIDTime = time;
+      lastVelPIDTime = runTime; // reset time early so intervals are accurate
+
+      velPIDSetpt = traj->getTargetVel(runTime / 1000000.0) + posPIDOut;
+
+      posPID.Compute();
+
+      turnMotor(velPIDOut);
     }
 
+    // TODO: prob need a better termination condition
     if(motorEnc.read() >= targetD) {
+      // disable motor
+      motor.Stop();
+      motor.Disable();
 
+      // print results
+      String timeTraveled = String((micros() - startTime) / 1000000.0, 3);
+      String distTraveled = String(motorEnc.read() / (double) CPR * wheelCircumference, 1);
+      Serial.println("Acc dist traveled: " + distTraveled + "cm\tAcc time traveled: " + timeTraveled + "s");
+
+      // reset vars
+      running = false;
+      motorEnc.write(0);
+      lastEncVal = 0;
+      lastPosPIDTime = -2 * posPIDInterval;
+      lastVelPIDTime = -2 * velPIDInterval;
+      delete traj;
+      traj = nullptr;
     }
+  }
+}
+
+// turn motor left or right given a value from -255 to 255
+void turnMotor(int pwm) {
+  if(pwm >= 0) {
+    motor.TurnRight(pwm);
+  } else {
+    motor.TurnLeft(pwm);
   }
 }
