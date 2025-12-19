@@ -1,18 +1,16 @@
 # hehe sci oly ev for lambert
 
-as of rn its literally just copy paste from unphayzed except all the stuff about setting target time and target distance with those buttons and rotary encoders is all deleted
+Hello so this is gonna be kinda pain honestly 🥲👍
 
-Also i fixed *what i thought* were errors in his code, but havent tested it recently so idk
+Basically this ev will use cascading PID with an outer position loop and inner
+velocity loop to precisely control the motor to move the right distance in the right time.
 
-I havent even looked at the movement logic btw
+The path that the PID will try to match up with is a trapezoidal velocity-time profile,
+with a constant acceleration period, a cruise period, and a constant deceleration period.
 
-but hopefully the unphayzed code works as a backup; I plan to create new code from scratch that uses a cascading PID system with position and velocity control bc why not atp
+The mathematical setup for the calculations can be found in
+[this](https://www.overleaf.com/read/zccntryzrtrq#407659) overleaf doc and the actual
+result of the derivation can be viewed and verified
+[here](https://www.desmos.com/calculator/avxj6yh4fy) on desmos.
 
-i've kept a copy of unphayzed's edited code in the branch `releases/unphayzed-modif` which is where development of that code will happen
-
-later i plan to create a separate branch with custom code and merge it with main
-
-hopefully I will implement a system like unphayzed's where u can set target distance and target time in both of the codes *eventually*
-
-**Updated on 18:00 12/16/2025**<br>
-*also ik this is not how to make a readme idc*
+*i am not showing the derivation itself btw that is too much work*

@@ -1,302 +1,191 @@
 /*
-UNPHAYZED ELECTRIC CHAMPION KIT 2025-2026
+hehe I love PID trust
 
-MAIN VEHICLE CODE
+also once the arduino is on for like 35 min the ev will prob start tweaking the shit out bc
+i think micros() overflows and will probably have to restart arduino
 */
 
-#include <RobojaxBTS7960.h>  //Download this library from the instructions page
-#include <math.h>
+#define ENCODER_OPTIMIZE_INTERRUPTS
+#include <Encoder.h>
+#include <BTS7960.h>
+#include <PID_v1.h>
 
+#include "trajectory.h"
 
-//MOTOR DRIVER PINS+SETUP------------------------------------
-#define RPWM 10  // define pin for RPWM pin (output)
-#define R_EN 11  // define pin for R_EN pin (input)
-#define R_IS 13  // define pin for R_IS pin (output)
+// rotary encoder pins
+#define ENC_A 2
+#define ENC_B 3
 
-#define LPWM 9   // define pin for LPWM pin (output)
-#define L_EN 8   // define pin for L_EN pin (input)
-#define L_IS 12  // define pin for L_IS pin (output)
+// motor controller pins
+#define R_EN 11
+#define L_EN 8
+#define R_PWM 10
+#define L_PWM 9
 
-#define CW 1   //defines CW motor movement
-#define CCW 0  //defines CCW motor movement
+// button pins
+#define START_BTN_PIN 6
 
-#define debug 1  //change to 0 to hide serial monitor debugging infornmation or set to 1 to view
+// TODO: add LCD and rotary encoder and stuff
 
-RobojaxBTS7960 motor(R_EN, RPWM, R_IS, L_EN, LPWM, L_IS, debug);
+// movement vars?
+const unsigned int CPR = 480;
 
+const double wheelDia = 6.0325;  // in cm
+const double wheelCircumference = wheelDia * 3.14159;
 
-//ENCODER PINS------------------------------------
-#define ENCA 2  //Vehicle encoder pin
-#define ENCB 3  //Vehicle encoder pin
+const double targetDistInM = 10.0;
+const unsigned long targetD = round(targetDistInM * 100 / wheelCircumference * CPR);  // target dist in counts
+const double targetT = 12.0;
 
+const double accelInM = 1.2; // m/s^2
+const double accel = accelInM * 100 / wheelCircumference * CPR;  // in counts per s squared
+const double maxSpdInM = 1.5; // m/s
+const double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;
 
-//PUSH BUTTON PINS------------------------------------
-#define StartButtonPin 6  //Start vehicle
+// PID pain
+const double Kp_pos = 0;
+const double Ki_pos = 0;
+const double Kd_pos = 0;
+const unsigned int posPIDInterval = 15000;  // in microseconds
 
+const double Kp_vel = 0;
+const double Ki_vel = 0;
+const double Kd_vel = 0;
+const unsigned int velPIDInterval = 2000;  // in microseconds
 
-//ENCODER VARIABLES------------------------------------
-volatile unsigned long counter = 0;  //This variable will increase or decrease depending on the rotation of encoder
-volatile uint8_t encState;
+double posPIDIn, posPIDOut, posPIDSetpt;
+double velPIDIn, velPIDOut, velPIDSetpt;
 
-const int8_t encArr[16] = {
-  0, -1,  1,  0,
-  1,  0,  0, -1,
- -1,  0,  0,  1,
-  0,  1, -1,  0
-};
+// random timing/constrol shi
+// I set the last times to negative numbers to make sure the first PID loop that runs triggers
+// both pos and vel loops, and to make sure it runs right after start button pressed 
+long lastPosPIDTime = -2 * posPIDInterval;  // in microseconds
+long lastVelPIDTime = -2 * velPIDInterval;  // in microseconds
+unsigned long startTime;
 
+long lastEncVal = 0;
 
-//MOVEMENT VARIABLES------------------------------------
-double TargetDistanceInM = 10.000;                //Target Distance in m
-double TargetDistance = TargetDistanceInM * 100;  //Target Distance in cm
-double ArcLength;                                 //Actual travel distance
-double TargetTime = 20.00;                        //Target Time in s
-double wheelDiameter = 6.0325;                    //Wheel Diameter is 2.875in = 7.3025 cm
-double wheelCircumfrence = wheelDiameter * 3.14159;
-double slowDownDistance;    //Distance that initial slowing is initiated
-double snailDistance;       //Distance that secondary slowing is initiated
-double CPR = 480;  //Encoder CPR
+bool running = false;  // run the PID part of the loop and dont check for other input
 
-bool SBpressed = false;
-bool moved = false;
-bool slowed = false;
-bool snail = false;
-bool reachedTargetDistance = false;
+// objects for literally everything
+Encoder motorEnc(ENC_A, ENC_B);
 
-double targetEncoderValue;
-double slowDownEncoderValue;
-double maxEncoderValue;
-double encoderChange;
-double finalDist;
+BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
+Trajectory* traj = nullptr;  // idk what pointers are so idk if i should be using them bc memory leaks or some shi
 
-//TIMER VARIABLES------------------------------------
-long startTime;
-long currentTime;
-long endTime;
-
-double timeDiff;
-double milisTime;
-double runTime;
-
+PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
+PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
 
 void setup() {
-
   Serial.begin(9600);
-  Serial.println("Entered Setup");
+  Serial.println("------------Beginning Setup------------");
 
+  // reset encoder value
+  motorEnc.write(0);
+  Serial.println("encoder configured");
 
-  //MOTOR SETUP----------------------------------------------------
-  motor.begin();
-  Serial.println("Motor Setup Complete");
+  // configure motor
+  motor.Enable();
+  Serial.println("motor configured");
 
+  // configure start button
+  pinMode(START_BTN_PIN, INPUT_PULLUP);
+  Serial.println("start button configured");
 
-  //BUTTON SETUP----------------------------------------------------
-  pinMode(StartButtonPin, INPUT_PULLUP);
+  // configure PID
+  posPID.SetOutputLimits(-maxSpd, maxSpd);
+  velPID.SetOutputLimits(-255, 255);
+  posPID.SetMode(AUTOMATIC);
+  velPID.SetMode(AUTOMATIC);
+  Serial.println("PID configured");
 
-  Serial.println("Button Setup Complete");
+  // reset vars
+  running = false;
+  lastPosPIDTime = -2 * posPIDInterval;
+  lastVelPIDTime = -2 * velPIDInterval;
+  lastEncVal = 0;
+  Serial.println("variables reset");
 
-
-  //ENCODER SETUP----------------------------------------------------
-  pinMode(ENCA, INPUT_PULLUP);  // set pin to input w/ pullup resistors
-  pinMode(ENCB, INPUT_PULLUP);  // set pin to input w/ pullup resistors
-
-  //setting the current encoder state
-  encState = (digitalRead(ENCA) << 1) | digitalRead(ENCB);
-
-  //Setting up interrupt
-  //Activates whenever theres a change in either of the encoder pins
-  attachInterrupt(digitalPinToInterrupt(ENCA), encInterrupt, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(ENCB), encInterrupt, CHANGE);
-
-  Serial.println("Encoder Setup Complete");
-
-
-  //TARGET ENCODER VALUES SETUP----------------------------------------------------
-  targetEncoderValue = getEncoderValue(TargetDistance, wheelDiameter);
-  maxEncoderValue = targetEncoderValue * 1.5;
-
-  Serial.println(targetEncoderValue);
-  Serial.println(maxEncoderValue);
-
-  Serial.println("Target Values Set");
-  Serial.println("Target Values Set");
-
-
-  //VARIABLE SETUP----------------------------------------------------
-  SBpressed = false;
-  moved = false;
-  slowed = false;
-  snail = false;
-  reachedTargetDistance = false;
-
-  Serial.println("Variable Reset Complete");
-
-  Serial.println("Setup Complete");
+  Serial.println("------------Setup Complete------------");
 }
 
 void loop() {
+  if(!running) {
+    delay(10);
 
-  if (digitalRead(StartButtonPin) == LOW) {
-    //This section of code resets the movement bools and counter and records the starting time
-    Serial.println("Start pressed");
-    moved = false;
-    slowed = false;
-    snail = false;
-    reachedTargetDistance = false;
-    counter = 0;
-    startTime = millis();
-    Serial.println(startTime);
-    SBpressed = true;
-  }
+    if(digitalRead(START_BTN_PIN) == LOW) {
+      running = true;
+      motorEnc.write(0);
+      motor.Enable();
 
-  if (SBpressed) {
-    //This section of code turns the motor on
-    motor.rotate(50, CW);  // run motor with 30% speed in CW direction
-    moved = true;
-    SBpressed = false;
-  }
+      lastEncVal = 0;
+      lastPosPIDTime = -2 * posPIDInterval;
+      lastVelPIDTime = -2 * velPIDInterval;
 
-  if (moved) {
-    //This section of code keeps the motor running until the vehicle reaches the slow down dist
-    if (counter >= slowDownEncoderValue && counter < maxEncoderValue) {
-      Serial.println("Reached Decel Distance");
-      //This section of code stops the motor and checks run time
-      motor.stop();  // stop the motor
-      motor.rotate(30, CCW);
-      delay(100);
-      motor.stop();
-      delay(500);
+      delete traj;
+      traj = new Trajectory(targetD, targetT);
 
-      currentTime = millis();
-      Serial.println(currentTime);
-      milisTime = currentTime - startTime;
-      runTime = milisTime / 1000.00;
-      timeDiff = TargetTime - runTime;
-
-      Serial.println(timeDiff);
-
-      slowed = true;
-      moved = false;
+      startTime = micros();
     }
-  }
+  } else {
+    // might wanna move all this to some separate function
+    unsigned long runTime = micros() - startTime;
 
-  if (slowed) {
-    /*
-    This section of code initiates a set of small pulses.
-    These pulses are averaged and used to determine the total number needed to reach the target dist.
-    By knowing the amount of pulses needed, the interval between pulses can be adjusted to achieve the target time.
-    */
-    encoderChange = 0;
-    double initalEncoderVal;
-    double finalEncoderVal;
+    // pos loop
+    // might want to check if lastPos(& Vel)PIDTime is 0
+    if(runTime - lastPosPIDTime >= posPIDInterval) {
+      lastPosPIDTime = runTime;
 
-    //Performs 5 pulses at 0.4 secs per pulse
-    for (int i = 0; i < 5; i++) {
-      initalEncoderVal = counter;
-      motor.rotate(10, CW);
-      delay(200);
-      motor.stop();
-      delay(200);
-      finalEncoderVal = counter;
+      posPIDSetpt = traj->getTargetPos(runTime / 1000000.0);
+      posPIDIn = motorEnc.read();
 
-      encoderChange += (finalEncoderVal - initalEncoderVal);
+      posPID.Compute(); // sets posPIDOut in-place btw
     }
 
-    //average distance change per pulse
-    encoderChange = encoderChange / 5;
+    // vel loop
+    if(runTime - lastVelPIDTime >= velPIDInterval) {
+      long currEncVal = motorEnc.read();
+      velPIDIn = (currEncVal - lastEncVal) / (runTime - lastVelPIDTime); // calc curr velocity as fast as possible
+      lastEncVal = currEncVal;
 
-    //check run time
-    currentTime = millis();
-    Serial.println(currentTime);
-    milisTime = currentTime - startTime;
-    runTime = milisTime / 1000.00;
-    timeDiff = TargetTime - runTime;
+      lastVelPIDTime = runTime; // reset time early so intervals are accurate
 
-    Serial.println(timeDiff);
+      velPIDSetpt = traj->getTargetVel(runTime / 1000000.0) + posPIDOut;
 
-    snail = true;
-    slowed = false;
-  }
+      posPID.Compute();
 
-
-  if (snail) {
-    //This sections of code determines number of pulses needed to reach TD
-    //It also determines the interval length needed to reach the target time
-    double remainingDist = targetEncoderValue - counter;
-    double pulses = remainingDist / encoderChange;
-    double pulseTime = pulses * 0.2;
-    double nonPulseTime = timeDiff - pulseTime;
-    if (nonPulseTime < 0) {
-      nonPulseTime = 0;
-    }
-    double pulseDelay = 1000 * (nonPulseTime / (pulses - 1));  //delay in ms
-
-    //initiate pulses
-    for (int i = 0; i < pulses; i++) {
-      motor.rotate(10, CW);
-      delay(200);
-      motor.stop();
-      delay(pulseDelay);
+      turnMotor(velPIDOut);
     }
 
-    //check run time
-    endTime = millis();
-    Serial.println(endTime);
-    milisTime = endTime - startTime - pulseDelay;
-    runTime = milisTime / 1000.00;
-    Serial.println(runTime);
+    // TODO: prob need a better termination condition
+    if(motorEnc.read() >= targetD) {
+      // disable motor
+      motor.Stop();
+      motor.Disable();
 
-    snail = false;
-    reachedTargetDistance = true;
-  }
+      // print results
+      String timeTraveled = String((micros() - startTime) / 1000000.0, 3);
+      String distTraveled = String(motorEnc.read() / (double) CPR * wheelCircumference, 1);
+      Serial.println("Acc dist traveled: " + distTraveled + "cm\tAcc time traveled: " + timeTraveled + "s");
 
-  if (reachedTargetDistance) {
-    //This section of code records actual dist and time for debugging purposes
-
-    delay(1000);  //wait 1 sec to make sure all movement has stopped
-
-    Serial.println("Reached Target Distance Loop");
-    Serial.println(counter);
-
-    //determine distance error from run
-    finalDist = TargetDistance * (counter / targetEncoderValue);
-
-    //reset all bools + counter
-    SBpressed = false;
-    moved = false;
-    slowed = false;
-    snail = false;
-    reachedTargetDistance = false;
-    counter = 0;
+      // reset vars
+      running = false;
+      motorEnc.write(0);
+      lastEncVal = 0;
+      lastPosPIDTime = -2 * posPIDInterval;
+      lastVelPIDTime = -2 * velPIDInterval;
+      delete traj;
+      traj = nullptr;
+    }
   }
 }
 
-
-void encInterrupt() {
-  uint8_t A = digitalRead(ENCA);
-  uint8_t B = digitalRead(ENCB);
-  
-  uint8_t newEncState = (A << 1) | B;
-  uint8_t index = (encState << 2) | newEncState;
-
-  counter += encArr[index];
-
-  encState = newEncState;
-}
-
-double getEncoderValue(double TD, double WD) {
-  double WheelCircumfrence = 3.14159 * WD;
-  double tgtENCval = (TD / WheelCircumfrence) * CPR;
-  return tgtENCval;
-}
-
-double getArcLength(double TargetDist) {
-  double vehicleWidth = 13.00;
-  double canBonusError = 2.00;
-  double arcHeight = 100.00 - (vehicleWidth + canBonusError) / 2;
-  double arcRadius = ((arcHeight / 2) + (sq(TargetDist) / (8 * arcHeight)));
-  double arcAngle = 2 * asin(TargetDist / (2 * arcRadius));
-  double arcLength = arcRadius * arcAngle;
-  return arcLength;
+// turn motor left or right given a value from -255 to 255
+void turnMotor(int pwm) {
+  if(pwm >= 0) {
+    motor.TurnRight(pwm);
+  } else {
+    motor.TurnLeft(pwm);
+  }
 }
