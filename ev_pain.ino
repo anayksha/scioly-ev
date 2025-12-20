@@ -3,18 +3,27 @@ hehe I love PID trust
 
 also once the arduino is on for like 35 min the ev will prob start tweaking the shit out bc
 i think micros() overflows and will probably have to restart arduino
-*/
 
+TODO: see if u should replace const stuff with constexpr
+*/
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
 #include <BTS7960.h>
 #include <PID_v1.h>
 
 #include "trajectory.h"
+#include "controls.h"
 
 // rotary encoder pins
-#define ENC_A 2
-#define ENC_B 3
+#define MTR_ENC_A 2
+#define MTR_ENC_B 3
+
+#define CTRL_ENC_A 4
+#define CTRL_ENC_B 5
+#define CTRL_ENC_BTN 6
 
 // motor controller pins
 #define R_EN 11
@@ -25,6 +34,11 @@ i think micros() overflows and will probably have to restart arduino
 // button pins
 #define START_BTN_PIN 6
 
+// screen pins
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define SCREEN_ADDRESS 0x3C // TODO USE I2C SCANNER TO FIGURE OUT WHAT IT ACC IS!!
+
 // TODO: add LCD and rotary encoder and stuff
 
 // movement vars?
@@ -33,9 +47,9 @@ const unsigned int CPR = 480;
 const double wheelDia = 6.0325;  // in cm
 const double wheelCircumference = wheelDia * 3.14159;
 
-const double targetDistInM = 10.0;
-const unsigned long targetD = round(targetDistInM * 100 / wheelCircumference * CPR);  // target dist in counts
-const double targetT = 12.0;
+double targetDInM = 10.0;
+unsigned long targetD = round(targetDInM * 100 / wheelCircumference * CPR);  // target dist in counts
+double targetT = 12.0;
 
 const double accelInM = 1.2; // m/s^2
 const double accel = accelInM * 100 / wheelCircumference * CPR;  // in counts per s squared
@@ -68,46 +82,54 @@ long lastEncVal = 0;
 bool running = false;  // run the PID part of the loop and dont check for other input
 
 // objects for literally everything
-Encoder motorEnc(ENC_A, ENC_B);
+Encoder motorEnc(MTR_ENC_A, MTR_ENC_B);
 
 BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
+
+Controls controller(targetDInM, targetT, CTRL_ENC_A, CTRL_ENC_B, CTRL_ENC_BTN);
 
 Trajectory* traj = nullptr;  // idk what pointers are so idk if i should be using them bc memory leaks or some shi
 
 PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
 PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
 
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
 void setup() {
   Serial.begin(9600);
-  Serial.println("------------Beginning Setup------------");
+  Serial.println(F("------------Beginning Setup------------"));
 
   // reset encoder value
   motorEnc.write(0);
-  Serial.println("encoder configured");
+  Serial.println(F("encoder configured"));
 
   // configure motor
   motor.Enable();
-  Serial.println("motor configured");
+  Serial.println(F("motor configured"));
 
   // configure start button
   pinMode(START_BTN_PIN, INPUT_PULLUP);
-  Serial.println("start button configured");
+  Serial.println(F("start button configured"));
 
   // configure PID
   posPID.SetOutputLimits(-maxSpd, maxSpd);
   velPID.SetOutputLimits(-255, 255);
   posPID.SetMode(AUTOMATIC);
   velPID.SetMode(AUTOMATIC);
-  Serial.println("PID configured");
+  Serial.println(F("PID configured"));
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("yeah its over ts screen didnt work"));
+  }
 
   // reset vars
   running = false;
   lastPosPIDTime = -2 * posPIDInterval;
   lastVelPIDTime = -2 * velPIDInterval;
   lastEncVal = 0;
-  Serial.println("variables reset");
+  Serial.println(F("variables reset"));
 
-  Serial.println("------------Setup Complete------------");
+  Serial.println(F("------------Setup Complete------------"));
 }
 
 void loop() {
