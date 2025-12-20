@@ -86,7 +86,7 @@ Encoder motorEnc(MTR_ENC_A, MTR_ENC_B);
 
 BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
-Controls controller(targetDInM, targetT, CTRL_ENC_A, CTRL_ENC_B, CTRL_ENC_BTN);
+Controls controls(targetDInM, targetT, CTRL_ENC_A, CTRL_ENC_B, CTRL_ENC_BTN);
 
 Trajectory* traj = nullptr;  // idk what pointers are so idk if i should be using them bc memory leaks or some shi
 
@@ -94,6 +94,15 @@ PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
 PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// turn motor left or right given a value from -255 to 255
+void turnMotor(int pwm) {
+  if(pwm >= 0) {
+    motor.TurnRight(pwm);
+  } else {
+    motor.TurnLeft(pwm);
+  }
+}
 
 void setup() {
   Serial.begin(9600);
@@ -133,24 +142,7 @@ void setup() {
 }
 
 void loop() {
-  if(!running) {
-    delay(10);
-
-    if(digitalRead(START_BTN_PIN) == LOW) {
-      running = true;
-      motorEnc.write(0);
-      motor.Enable();
-
-      lastEncVal = 0;
-      lastPosPIDTime = -2 * posPIDInterval;
-      lastVelPIDTime = -2 * velPIDInterval;
-
-      delete traj;
-      traj = new Trajectory(targetD, targetT);
-
-      startTime = micros();
-    }
-  } else {
+  if(running) {
     // might wanna move all this to some separate function
     unsigned long runTime = micros() - startTime;
 
@@ -193,6 +185,7 @@ void loop() {
 
       // reset vars
       running = false;
+      controls.reset();
       motorEnc.write(0);
       lastEncVal = 0;
       lastPosPIDTime = -2 * posPIDInterval;
@@ -200,14 +193,32 @@ void loop() {
       delete traj;
       traj = nullptr;
     }
-  }
-}
+  } else if(controls.ctrlsActive()) {
+    delay(10);
+    
+    if(controls.update()) {
+      // write to the screen
+    }
 
-// turn motor left or right given a value from -255 to 255
-void turnMotor(int pwm) {
-  if(pwm >= 0) {
-    motor.TurnRight(pwm);
+    // check if ready to run after ts updated
+    if(!controls.ctrlsActive()) {
+      // if ctrls disabled bc ready to run,
+      delete traj;
+      traj = new Trajectory(targetD, targetT);
+
+      lastEncVal = 0;
+      lastPosPIDTime = -2 * posPIDInterval;
+      lastVelPIDTime = -2 * velPIDInterval;
+    }
   } else {
-    motor.TurnLeft(pwm);
+    delay(10);
+
+    if(digitalRead(START_BTN_PIN) == LOW) {
+      running = true;
+      motorEnc.write(0);
+      motor.Enable();
+
+      startTime = micros();
+    }
   }
 }

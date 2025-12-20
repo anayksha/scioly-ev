@@ -32,7 +32,6 @@ class Trajectory {
   double phase2Dist; // cruise phase
 
   public:
-
     // computes all of the instance variables given targetD and targetT in counts and seconds
     Trajectory(long targetD, long targetT);
 
