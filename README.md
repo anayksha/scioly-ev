@@ -1,5 +1,10 @@
 # hehe sci oly ev for lambert
 
+### IMPORTANT
+make sure to find address of SSD1306 display before using this script
+
+### ok the rest of it
+
 Hello so this is gonna be kinda pain honestly 🥲👍
 
 Basically this ev will use cascading PID with an outer position loop and inner
@@ -14,3 +19,10 @@ result of the derivation can be viewed and verified
 [here](https://www.desmos.com/calculator/avxj6yh4fy) on desmos.
 
 *i am not showing the derivation itself btw that is too much work*
+
+The target dist and time can be set on the vehicle itself with an ec11 w/ button similar
+to how unphayzed can. both values are set digit by digit, and a press of the encoder button confirms
+the selection for each digit. The values are displayed by an onboard SSD1306 display.
+
+Also, as of 15:26 12/20/2025 I didnt check if the pins i defined for peripherals are conflicting
+or are even viable btw.
