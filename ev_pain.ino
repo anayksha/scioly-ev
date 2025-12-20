@@ -3,8 +3,6 @@ hehe I love PID trust
 
 also once the arduino is on for like 35 min the ev will prob start tweaking the shit out bc
 i think micros() overflows and will probably have to restart arduino
-
-TODO: see if u should replace const stuff with constexpr
 */
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -39,33 +37,31 @@ TODO: see if u should replace const stuff with constexpr
 #define SCREEN_HEIGHT 64
 #define SCREEN_ADDRESS 0x3C // TODO USE I2C SCANNER TO FIGURE OUT WHAT IT ACC IS!!
 
-// TODO: add LCD and rotary encoder and stuff
-
 // movement vars?
-const unsigned int CPR = 480;
+constexpr unsigned int CPR = 480;
 
-const double wheelDia = 6.0325;  // in cm
-const double wheelCircumference = wheelDia * 3.14159;
+constexpr double wheelDia = 6.0325;  // in cm
+constexpr double wheelCircumference = wheelDia * 3.14159;
 
 double targetDInM = 10.0;
-unsigned long targetD = round(targetDInM * 100 / wheelCircumference * CPR);  // target dist in counts
+unsigned long targetD; // target dist in counts, set right after onboard setting is done
 double targetT = 12.0;
 
-const double accelInM = 1.2; // m/s^2
-const double accel = accelInM * 100 / wheelCircumference * CPR;  // in counts per s squared
-const double maxSpdInM = 1.5; // m/s
-const double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;
+constexpr double accelInM = 1.2; // m/s^2
+constexpr double accel = accelInM * 100 / wheelCircumference * CPR;  // in counts per s squared
+constexpr double maxSpdInM = 1.5; // m/s
+constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;
 
 // PID pain
-const double Kp_pos = 0;
-const double Ki_pos = 0;
-const double Kd_pos = 0;
-const unsigned int posPIDInterval = 15000;  // in microseconds
+constexpr double Kp_pos = 0;
+constexpr double Ki_pos = 0;
+constexpr double Kd_pos = 0;
+constexpr unsigned int posPIDInterval = 15000;  // in microseconds
 
-const double Kp_vel = 0;
-const double Ki_vel = 0;
-const double Kd_vel = 0;
-const unsigned int velPIDInterval = 2000;  // in microseconds
+constexpr double Kp_vel = 0;
+constexpr double Ki_vel = 0;
+constexpr double Kd_vel = 0;
+constexpr unsigned int velPIDInterval = 2000;  // in microseconds
 
 double posPIDIn, posPIDOut, posPIDSetpt;
 double velPIDIn, velPIDOut, velPIDSetpt;
@@ -95,8 +91,8 @@ PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-// turn motor left or right given a value from -255 to 255
-void turnMotor(int pwm) {
+// drive motor left or right given a value from -255 to 255
+void driveMotor(int pwm) {
   if(pwm >= 0) {
     motor.TurnRight(pwm);
   } else {
@@ -127,9 +123,17 @@ void setup() {
   velPID.SetMode(AUTOMATIC);
   Serial.println(F("PID configured"));
 
+  // configure display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("yeah its over ts screen didnt work"));
+    for(;;); // loop forever ig
   }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.cp437(true);
+  display.setCursor(0, 0);
+  display.println(F("display configured"));
 
   // reset vars
   running = false;
@@ -167,9 +171,9 @@ void loop() {
 
       velPIDSetpt = traj->getTargetVel(runTime / 1000000.0) + posPIDOut;
 
-      posPID.Compute();
+      posPID.Compute(); // sets velPIDOut in-place btw
 
-      turnMotor(velPIDOut);
+      driveMotor(velPIDOut);
     }
 
     // TODO: prob need a better termination condition
@@ -197,12 +201,17 @@ void loop() {
     delay(10);
     
     if(controls.update()) {
-      // write to the screen
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.println("Target Dist: " + String(targetDInM, 3));
+      display.println("Target Time: " + String(targetT, 3));
     }
 
     // check if ready to run after ts updated
     if(!controls.ctrlsActive()) {
       // if ctrls disabled bc ready to run,
+      targetD = round(targetDInM * 100 / wheelCircumference * CPR);
+
       delete traj;
       traj = new Trajectory(targetD, targetT);
 
