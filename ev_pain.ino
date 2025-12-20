@@ -134,6 +134,7 @@ void setup() {
   display.cp437(true);
   display.setCursor(0, 0);
   display.println(F("display configured"));
+  display.display();
 
   // reset vars
   running = false;
@@ -205,6 +206,7 @@ void loop() {
       display.setCursor(0, 0);
       display.println("Target Dist: " + String(targetDInM, 3));
       display.println("Target Time: " + String(targetT, 3));
+      display.display();
     }
 
     // check if ready to run after ts updated
