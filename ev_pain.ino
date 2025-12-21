@@ -30,7 +30,7 @@ i think micros() overflows and will probably have to restart arduino
 #define L_PWM 9
 
 // button pins
-#define START_BTN_PIN 6
+#define START_BTN_PIN 7
 
 // screen pins
 #define SCREEN_WIDTH 128

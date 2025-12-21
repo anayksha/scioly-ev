@@ -45,6 +45,8 @@ bool Controls::update() {
 
   // if encoder position changed change that
   if(currEncState != prevEncState) {
+    // ts is kinda broken at the moment bc it doesn't loop through digits,
+    // it only adds and subtracts, so it can change the upper digits
     if(mode == DIST_SET) {
       targetD += encStep(currEncState) * pow(0.1, decimal);
     } else {
