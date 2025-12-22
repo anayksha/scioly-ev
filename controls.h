@@ -38,7 +38,7 @@ class Controls {
   double &targetT;
 
   public:
-    // initializes instance vars and Encoder obj to lock in
+    // initializes instance vars to lock in
     Controls(double &targetD, double &targetT, uint8_t encA, uint8_t encB, uint8_t btn);
 
     // true if still setting stuff, false if ready to run

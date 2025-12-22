@@ -40,7 +40,7 @@ i think micros() overflows and will probably have to restart arduino
 // movement vars?
 constexpr unsigned int CPR = 480;
 
-constexpr double wheelDia = 6.0325;  // in cm
+constexpr double wheelDia = 6.0325; // in cm
 constexpr double wheelCircumference = wheelDia * 3.14159;
 
 double targetDInM = 10.0;
@@ -48,20 +48,20 @@ unsigned long targetD; // target dist in counts, set right after onboard setting
 double targetT = 12.0;
 
 constexpr double accelInM = 1.2; // m/s^2
-constexpr double accel = accelInM * 100 / wheelCircumference * CPR;  // in counts per s squared
+constexpr double accel = accelInM * 100 / wheelCircumference * CPR; // in counts/s^2
 constexpr double maxSpdInM = 1.5; // m/s
-constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;
+constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR; // in counts/s
 
 // PID pain
 constexpr double Kp_pos = 0;
 constexpr double Ki_pos = 0;
 constexpr double Kd_pos = 0;
-constexpr unsigned int posPIDInterval = 15000;  // in microseconds
+constexpr unsigned int posPIDInterval = 10000; // in microseconds
 
 constexpr double Kp_vel = 0;
 constexpr double Ki_vel = 0;
 constexpr double Kd_vel = 0;
-constexpr unsigned int velPIDInterval = 2000;  // in microseconds
+constexpr unsigned int velPIDInterval = 1500; // in microseconds
 
 double posPIDIn, posPIDOut, posPIDSetpt;
 double velPIDIn, velPIDOut, velPIDSetpt;
@@ -69,13 +69,13 @@ double velPIDIn, velPIDOut, velPIDSetpt;
 // random timing/constrol shi
 // I set the last times to negative numbers to make sure the first PID loop that runs triggers
 // both pos and vel loops, and to make sure it runs right after start button pressed 
-long lastPosPIDTime = -2 * posPIDInterval;  // in microseconds
-long lastVelPIDTime = -2 * velPIDInterval;  // in microseconds
+long lastPosPIDTime = -2 * posPIDInterval; // in microseconds
+long lastVelPIDTime = -2 * velPIDInterval; // in microseconds
 unsigned long startTime;
 
 long lastEncVal = 0;
 
-bool running = false;  // run the PID part of the loop and dont check for other input
+bool running = false; // run the PID part of the loop and dont check for other input
 
 // objects for literally everything
 Encoder motorEnc(MTR_ENC_A, MTR_ENC_B);
@@ -84,7 +84,7 @@ BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
 Controls controls(targetDInM, targetT, CTRL_ENC_A, CTRL_ENC_B, CTRL_ENC_BTN);
 
-Trajectory* traj = nullptr;  // idk what pointers are so idk if i should be using them bc memory leaks or some shi
+Trajectory* traj = nullptr; // idk what pointers are so idk if i should be using them bc memory leaks or some shi
 
 PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
 PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
@@ -148,7 +148,6 @@ void setup() {
 
 void loop() {
   if(running) {
-    // might wanna move all this to some separate function
     unsigned long runTime = micros() - startTime;
 
     // pos loop
@@ -165,7 +164,7 @@ void loop() {
     // vel loop
     if(runTime - lastVelPIDTime >= velPIDInterval) {
       long currEncVal = motorEnc.read();
-      velPIDIn = (currEncVal - lastEncVal) / (runTime - lastVelPIDTime); // calc curr velocity as fast as possible
+      velPIDIn = (currEncVal - lastEncVal) / (runTime - lastVelPIDTime); // calc curr velocity as early as possible
       lastEncVal = currEncVal;
 
       lastVelPIDTime = runTime; // reset time early so intervals are accurate
@@ -199,6 +198,7 @@ void loop() {
       traj = nullptr;
     }
   } else if(controls.ctrlsActive()) {
+    // ts else if runs to set the targetD and targetT using controls object
     delay(10);
     
     if(controls.update()) {
@@ -222,6 +222,7 @@ void loop() {
       lastVelPIDTime = -2 * velPIDInterval;
     }
   } else {
+    // ts else runs if targetT and targetD are set and now just waiting for start button press
     delay(10);
 
     if(digitalRead(START_BTN_PIN) == LOW) {

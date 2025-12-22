@@ -49,7 +49,7 @@ bool Controls::update() {
     // it only adds and subtracts, so it can change the upper digits
     if(mode == DIST_SET) {
       targetD += encStep(currEncState) * pow(0.1, decimal);
-    } else {
+    } else if(mode == TIME_SET) { // unnecessary "if" but for if i accidentally call update() when mode is READY_TO_RUN
       targetT += encStep(currEncState) * pow(0.1, decimal);
     }
     updated = true;

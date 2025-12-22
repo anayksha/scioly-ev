@@ -24,8 +24,5 @@ The target dist and time can be set on the vehicle itself with an ec11 w/ button
 to how unphayzed can. both values are set digit by digit, and a press of the encoder button confirms
 the selection for each digit. The values are displayed by an onboard SSD1306 display.
 
-oh here is theoretical wiring diagram btw
+oh here is wiring diagram btw based on whats in the code rn
 ![if this text shows up ur cooked](schematic.jpg)
-
-Also, as of 15:26 12/20/2025 I didnt check if the pins i defined for peripherals are conflicting
-or are even viable btw.
