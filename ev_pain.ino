@@ -96,7 +96,7 @@ void driveMotor(int pwm) {
   if(pwm >= 0) {
     motor.TurnRight(pwm);
   } else {
-    motor.TurnLeft(pwm);
+    motor.TurnLeft(-pwm);
   }
 }
 
