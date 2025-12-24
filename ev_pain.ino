@@ -48,7 +48,7 @@ unsigned long targetD; // target dist in counts, set right after onboard setting
 double targetT = 12.0;
 
 constexpr double accelInM = 1.2; // m/s^2
-constexpr double accel = accelInM * 100 / wheelCircumference * CPR; // in counts/s^2
+extern const double accel = accelInM * 100 / wheelCircumference * CPR; // in counts/s^2
 constexpr double maxSpdInM = 1.5; // m/s
 constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR; // in counts/s
 
@@ -184,8 +184,12 @@ void loop() {
 
       // print results
       String timeTraveled = String((micros() - startTime) / 1000000.0, 3);
-      String distTraveled = String(motorEnc.read() / (double) CPR * wheelCircumference, 1);
-      Serial.println("Acc dist traveled: " + distTraveled + "cm\tAcc time traveled: " + timeTraveled + "s");
+      String distTraveled = String(motorEnc.read() / (double) CPR * wheelCircumference * 0.01, 3);
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.println("Acc dist: " + distTraveled);
+      display.println("Acc time: " + timeTraveled);
+      delay(10000);
 
       // reset vars
       running = false;
@@ -220,6 +224,13 @@ void loop() {
       lastEncVal = 0;
       lastPosPIDTime = -2 * posPIDInterval;
       lastVelPIDTime = -2 * velPIDInterval;
+
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.println("Target Dist: " + String(targetDInM, 3));
+      display.println("Target Time: " + String(targetT, 3));
+      display.println("READY TO RUN");
+      display.display();
     }
   } else {
     // ts else runs if targetT and targetD are set and now just waiting for start button press
