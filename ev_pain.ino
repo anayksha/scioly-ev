@@ -16,21 +16,21 @@ i think micros() overflows and will probably have to restart arduino
 #include "controls.h"
 
 // rotary encoder pins
-#define MTR_ENC_A 2
-#define MTR_ENC_B 3
+#define MTR_ENC_A 32
+#define MTR_ENC_B 33
 
-#define CTRL_ENC_A 4
-#define CTRL_ENC_B 5
-#define CTRL_ENC_BTN 6
+#define CTRL_ENC_A 17
+#define CTRL_ENC_B 16
+#define CTRL_ENC_BTN 4
 
 // motor controller pins
-#define R_EN 11
-#define L_EN 8
-#define R_PWM 10
-#define L_PWM 9
+#define R_EN 25
+#define L_EN 14
+#define R_PWM 26
+#define L_PWM 27
 
 // button pins
-#define START_BTN_PIN 7
+#define START_BTN_PIN 18
 
 // screen pins
 #define SCREEN_WIDTH 128
@@ -61,7 +61,7 @@ constexpr unsigned int posPIDInterval = 10000; // in microseconds
 constexpr double Kp_vel = 0;
 constexpr double Ki_vel = 0;
 constexpr double Kd_vel = 0;
-constexpr unsigned int velPIDInterval = 1500; // in microseconds
+constexpr unsigned int velPIDInterval = 1000; // in microseconds
 
 double posPIDIn, posPIDOut, posPIDSetpt;
 double velPIDIn, velPIDOut, velPIDSetpt;
