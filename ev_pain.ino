@@ -7,8 +7,7 @@ i think micros() overflows and will probably have to restart arduino
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#define ENCODER_OPTIMIZE_INTERRUPTS
-#include <Encoder.h>
+#include <ESP32Encoder.h>
 #include <BTS7960.h>
 #include <PID_v1.h>
 
@@ -78,7 +77,7 @@ long lastEncVal = 0;
 bool running = false; // run the PID part of the loop and dont check for other input
 
 // objects for literally everything
-Encoder motorEnc(MTR_ENC_A, MTR_ENC_B);
+ESP32Encoder motorEnc;
 
 BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
@@ -105,7 +104,9 @@ void setup() {
   Serial.println(F("------------Beginning Setup------------"));
 
   // reset encoder value
-  motorEnc.write(0);
+  ESP32Encoder::useInternalWeakPullResistors = puType::up;
+  motorEnc.attachFullQuad(MTR_ENC_A, MTR_ENC_B);
+  motorEnc.clearCount();
   Serial.println(F("encoder configured"));
 
   // configure motor
@@ -156,14 +157,14 @@ void loop() {
       lastPosPIDTime = runTime;
 
       posPIDSetpt = traj->getTargetPos(runTime / 1000000.0);
-      posPIDIn = motorEnc.read();
+      posPIDIn = motorEnc.getCount();
 
       posPID.Compute(); // sets posPIDOut in-place btw
     }
 
     // vel loop
     if(runTime - lastVelPIDTime >= velPIDInterval) {
-      long currEncVal = motorEnc.read();
+      long currEncVal = motorEnc.getCount();
       velPIDIn = (currEncVal - lastEncVal) / (runTime - lastVelPIDTime); // calc curr velocity as early as possible
       lastEncVal = currEncVal;
 
@@ -177,14 +178,14 @@ void loop() {
     }
 
     // TODO: prob need a better termination condition
-    if(motorEnc.read() >= targetD) {
+    if(motorEnc.getCount() >= targetD) {
       // disable motor
       motor.Stop();
       motor.Disable();
 
       // print results
       String timeTraveled = String((micros() - startTime) / 1000000.0, 3);
-      String distTraveled = String(motorEnc.read() / (double) CPR * wheelCircumference * 0.01, 3);
+      String distTraveled = String(motorEnc.getCount() / (double) CPR * wheelCircumference * 0.01, 3);
       display.clearDisplay();
       display.setCursor(0, 0);
       display.println("Acc dist: " + distTraveled);
@@ -194,7 +195,7 @@ void loop() {
       // reset vars
       running = false;
       controls.reset();
-      motorEnc.write(0);
+      motorEnc.clearCount();
       lastEncVal = 0;
       lastPosPIDTime = -2 * posPIDInterval;
       lastVelPIDTime = -2 * velPIDInterval;
@@ -238,7 +239,7 @@ void loop() {
 
     if(digitalRead(START_BTN_PIN) == LOW) {
       running = true;
-      motorEnc.write(0);
+      motorEnc.clearCount();
       motor.Enable();
 
       startTime = micros();
