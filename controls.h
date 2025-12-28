@@ -2,7 +2,6 @@
 #define CONTROLS_H
 
 #include <Arduino.h>
-#include <Encoder.h>
 
 // edits target values in place with an encoder w/ button
 class Controls {
