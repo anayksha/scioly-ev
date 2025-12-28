@@ -1,5 +1,7 @@
 #include "controls.h"
 
+constexpr int8_t Controls::encArr[16];
+
 Controls::Controls(double &targetD, double &targetT, uint8_t encA, uint8_t encB, uint8_t btn)
   : targetD(targetD), targetT(targetT), encA(encA), encB(encB), btnPin(btn)
 {

@@ -20,7 +20,7 @@ class Controls {
 
   // cant use second enc object bc it tweaks the shit out when theres 1 enc
   // with interrupts and one without
-  static inline constexpr int8_t encArr[16] = {
+  static constexpr int8_t encArr[16] = {
      0, -1,  1,  0,
      1,  0,  0, -1,
     -1,  0,  0,  1,
