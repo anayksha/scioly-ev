@@ -37,7 +37,7 @@ i think micros() overflows and will probably have to restart arduino
 // screen pins
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-#define SCREEN_ADDRESS 0x3C // TODO USE I2C SCANNER TO FIGURE OUT WHAT IT ACC IS!!
+#define SCREEN_ADDRESS 0x3C
 
 // movement vars?
 constexpr unsigned int CPR = 480;

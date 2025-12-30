@@ -1,10 +1,5 @@
 # hehe sci oly ev for lambert
 
-### IMPORTANT
-make sure to find address of SSD1306 display before using this script
-
-### ok the rest of it
-
 Hello so this is gonna be kinda pain honestly 🥲👍
 
 Basically this ev will use cascading PID with an outer position loop and inner
