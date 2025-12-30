@@ -28,6 +28,9 @@ i think micros() overflows and will probably have to restart arduino
 #define R_PWM 26
 #define L_PWM 27
 
+// level shifter pin
+#define LVL_SHIFTER_OE 13
+
 // button pins
 #define START_BTN_PIN 18
 
@@ -102,6 +105,11 @@ void driveMotor(int pwm) {
 void setup() {
   Serial.begin(9600);
   Serial.println(F("------------Beginning Setup------------"));
+
+  // level shifter garbage
+  pinMode(LVL_SHIFTER_OE, OUTPUT);
+  digitalWrite(LVL_SHIFTER_OE, HIGH);
+  Serial.println(F("level shifter enabled"));
 
   // reset encoder value
   ESP32Encoder::useInternalWeakPullResistors = puType::up;
