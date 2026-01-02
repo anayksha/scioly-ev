@@ -1,19 +1,11 @@
 #include "controls.h"
 
-constexpr int8_t Controls::encArr[16];
-
 Controls::Controls(double &targetD, double &targetT, uint8_t encA, uint8_t encB, uint8_t btn)
-  : targetD(targetD), targetT(targetT), encA(encA), encB(encB), btnPin(btn)
+  : targetD(targetD), targetT(targetT), btnPin(btn)
 {
-  pinMode(encA, INPUT_PULLUP);
-  pinMode(encB, INPUT_PULLUP);
-  pinMode(btn, INPUT_PULLUP);
-
-  mode = DIST_SET;
-  decimal = 0;
-
-  prevEncState = readEnc();
-  btnPressed = false;
+  ctrlEnc.attachFullQuad(encA, encB);
+  
+  reset();
 }
 
 bool Controls::ctrlsActive() {
@@ -24,36 +16,26 @@ void Controls::reset() {
   mode = DIST_SET;
   decimal = 0;
 
-  prevEncState = readEnc();
+  ctrlEnc.clearCount();
+
   btnPressed = false;
-}
-
-uint8_t Controls::readEnc() {
-  return (digitalRead(encA) << 1) | digitalRead(encB);
-}
-
-int8_t Controls::encStep(uint8_t currEncState) {
-  uint8_t index = (prevEncState << 2) | currEncState; 
-
-  prevEncState = currEncState;
-
-  return encArr[index];
 }
 
 bool Controls::update() {
   bool updated = false;
 
-  uint8_t currEncState = readEnc();
+  long encVal = ctrlEnc.getCount();
 
   // if encoder position changed change that
-  if(currEncState != prevEncState) {
+  if(encVal != 0) {
     // ts is kinda broken at the moment bc it doesn't loop through digits,
     // it only adds and subtracts, so it can change the upper digits
     if(mode == DIST_SET) {
-      targetD += encStep(currEncState) * pow(0.1, decimal);
+      targetD += (encVal / 4) * pow(0.1, decimal);
     } else if(mode == TIME_SET) { // unnecessary "if" but for if i accidentally call update() when mode is READY_TO_RUN
-      targetT += encStep(currEncState) * pow(0.1, decimal);
+      targetT += (encVal / 4) * pow(0.1, decimal);
     }
+    ctrlEnc.clearCount();
     updated = true;
   }
 

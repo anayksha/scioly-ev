@@ -6,6 +6,7 @@ i think micros() overflows and will probably have to restart arduino
 
 TODO: see if u can change pos PID clamping to the calculated trapezoidal max velocity
 later in the script when distance and time are set
+TODO: also change the encoder used for controlling the vehicle to use ESP32Encoder
 */
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -86,7 +87,7 @@ BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
 Controls controls(targetDInM, targetT, CTRL_ENC_A, CTRL_ENC_B, CTRL_ENC_BTN);
 
-Trajectory *traj = nultlptr; // idk what pointers are so idk if i should be using them bc memory leaks or some shi
+Trajectory *traj = nullptr; // idk what pointers are so idk if i should be using them bc memory leaks or some shi
 
 PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
 PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);

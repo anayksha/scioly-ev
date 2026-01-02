@@ -2,6 +2,7 @@
 #define CONTROLS_H
 
 #include <Arduino.h>
+#include <ESP32Encoder.h>
 
 // edits target values in place with an encoder w/ button
 class Controls {
@@ -14,19 +15,7 @@ class Controls {
   uint8_t decimal;
 
   // encoder vars
-  const uint8_t encA;
-  const uint8_t encB;
-
-  // cant use second enc object bc it tweaks the shit out when theres 1 enc
-  // with interrupts and one without
-  static constexpr int8_t encArr[16] = {
-     0, -1,  1,  0,
-     1,  0,  0, -1,
-    -1,  0,  0,  1,
-     0,  1, -1,  0
-  };
-
-  uint8_t prevEncState;
+  ESP32Encoder ctrlEnc;
 
   // button vars
   const uint8_t btnPin;
@@ -45,12 +34,6 @@ class Controls {
 
     // resets controls so u can go for another run
     void reset();
-    
-    // reads enc for value 0-3
-    uint8_t readEnc();
-
-    // returns 1 or -1 based on change in encoder rotation
-    int8_t encStep(uint8_t currEncState);
 
     // updates targetD and targetT based on encoder and button input and returns true/false
     // depending on if something was changed
