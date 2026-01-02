@@ -4,8 +4,8 @@ hehe I love PID trust
 also once the arduino is on for like 35 min the ev will prob start tweaking the shit out bc
 i think micros() overflows and will probably have to restart arduino
 
-TODO: add motor deadband compensation and see if u can change pos PID clamping to
-the calculated trapezoidal max velocity later in the script when distance and time are set
+TODO: see if u can change pos PID clamping to the calculated trapezoidal max velocity
+later in the script when distance and time are set
 */
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -45,9 +45,9 @@ constexpr int CPR = 480;
 constexpr int motorDeadzone = 0; // is a pwm value
 
 constexpr double wheelDia = 6.0325; // in cm
-constexpr double wheelCircumference = wheelDia * 3.14159;
+constexpr double wheelCircumference = wheelDia * 3.14159265;
 
-double targetDInM = 10.0;
+double targetDInM = 8.0;
 long targetD; // target dist in counts, set right after onboard setting is done
 double targetT = 12.0;
 
@@ -71,15 +71,13 @@ double posPIDIn, posPIDOut, posPIDSetpt;
 double velPIDIn, velPIDOut, velPIDSetpt;
 
 // random timing/constrol shi
-// I set the last times to negative numbers to make sure the first PID loop that runs triggers
-// both pos and vel loops, and to make sure it runs right after start button pressed
-long lastPosPIDTime = -2 * posPIDInterval; // in microseconds
-long lastVelPIDTime = -2 * velPIDInterval; // in microseconds
+long lastPosPIDTime = 0; // in microseconds
+long lastVelPIDTime = 0; // in microseconds
 unsigned long startTime;
 
 long lastEncVal = 0;
 
-bool running = false; // run the PID part of the loop and dont check for other input
+bool running = false; // run the PID part of the loop and dont check for other input if true
 
 // objects for literally everything
 ESP32Encoder motorEnc;
@@ -88,7 +86,7 @@ BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
 Controls controls(targetDInM, targetT, CTRL_ENC_A, CTRL_ENC_B, CTRL_ENC_BTN);
 
-Trajectory* traj = nullptr; // idk what pointers are so idk if i should be using them bc memory leaks or some shi
+Trajectory *traj = nultlptr; // idk what pointers are so idk if i should be using them bc memory leaks or some shi
 
 PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
 PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
@@ -115,8 +113,8 @@ void setup() {
   Serial.println(F("encoder configured"));
 
   // configure motor
-  motor.Enable();
-  Serial.println(F("motor configured"));
+  motor.Disable();
+  Serial.println(F("ts motor should work hopefully"));
 
   // configure start button
   pinMode(START_BTN_PIN, INPUT_PULLUP);
@@ -144,8 +142,8 @@ void setup() {
 
   // reset vars
   running = false;
-  lastPosPIDTime = -2 * posPIDInterval;
-  lastVelPIDTime = -2 * velPIDInterval;
+  lastPosPIDTime = 0;
+  lastVelPIDTime = 0;
   lastEncVal = 0;
   Serial.println(F("variables reset"));
 
@@ -157,25 +155,24 @@ void loop() {
     unsigned long runTime = micros() - startTime;
 
     // pos loop
-    // might want to check if lastPos(& Vel)PIDTime is 0
-    if(runTime - lastPosPIDTime >= posPIDInterval) {
+    if(runTime - lastPosPIDTime >= posPIDInterval || lastPosPIDTime == 0) {
       lastPosPIDTime = runTime;
 
-      posPIDSetpt = traj->getTargetPos(runTime / 1000000.0);
+      posPIDSetpt = traj->getTargetPos(runTime * 0.000001);
       posPIDIn = motorEnc.getCount();
 
       posPID.Compute(); // sets posPIDOut in-place btw
     }
 
     // vel loop
-    if(runTime - lastVelPIDTime >= velPIDInterval) {
+    if(runTime - lastVelPIDTime >= velPIDInterval || lastVelPIDTime == 0) {
       long currEncVal = motorEnc.getCount();
       velPIDIn = (currEncVal - lastEncVal) / (runTime - lastVelPIDTime); // calc curr velocity as early as possible
       lastEncVal = currEncVal;
 
       lastVelPIDTime = runTime; // reset time early so intervals are accurate
 
-      velPIDSetpt = traj->getTargetVel(runTime / 1000000.0) + posPIDOut;
+      velPIDSetpt = traj->getTargetVel(runTime * 0.000001) + posPIDOut;
 
       posPID.Compute(); // sets velPIDOut in-place btw
 
@@ -189,8 +186,8 @@ void loop() {
       motor.Disable();
 
       // print results
-      String timeTraveled = String((micros() - startTime) / 1000000.0, 3);
-      String distTraveled = String(motorEnc.getCount() / (double) CPR * wheelCircumference * 0.01, 3);
+      String timeTraveled = String((micros() - startTime) * 0.000001, 3);
+      String distTraveled = String(motorEnc.getCount() / (double)CPR * wheelCircumference * 0.01, 3);
       display.clearDisplay();
       display.setCursor(0, 0);
       display.println("Acc dist: " + distTraveled);
@@ -202,8 +199,8 @@ void loop() {
       controls.reset();
       motorEnc.clearCount();
       lastEncVal = 0;
-      lastPosPIDTime = -2 * posPIDInterval;
-      lastVelPIDTime = -2 * velPIDInterval;
+      lastPosPIDTime = 0;
+      lastVelPIDTime = 0;
       delete traj;
       traj = nullptr;
     }
@@ -228,8 +225,8 @@ void loop() {
       traj = new Trajectory(targetD, targetT);
 
       lastEncVal = 0;
-      lastPosPIDTime = -2 * posPIDInterval;
-      lastVelPIDTime = -2 * velPIDInterval;
+      lastPosPIDTime = 0;
+      lastVelPIDTime = 0;
 
       display.clearDisplay();
       display.setCursor(0, 0);
