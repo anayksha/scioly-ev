@@ -40,7 +40,7 @@ the calculated trapezoidal max velocity later in the script when distance and ti
 #define SCREEN_ADDRESS 0x3C
 
 // movement vars?
-constexpr unsigned int CPR = 480;
+constexpr int CPR = 480;
 
 constexpr int motorDeadzone = 0; // is a pwm value
 
