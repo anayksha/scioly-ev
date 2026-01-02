@@ -3,6 +3,9 @@ hehe I love PID trust
 
 also once the arduino is on for like 35 min the ev will prob start tweaking the shit out bc
 i think micros() overflows and will probably have to restart arduino
+
+TODO: add motor deadband compensation and see if u can change pos PID clamping to
+the calculated trapezoidal max velocity later in the script when distance and time are set
 */
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -28,9 +31,6 @@ i think micros() overflows and will probably have to restart arduino
 #define R_PWM 26
 #define L_PWM 27
 
-// level shifter pin
-#define LVL_SHIFTER_OE 13
-
 // button pins
 #define START_BTN_PIN 18
 
@@ -42,35 +42,37 @@ i think micros() overflows and will probably have to restart arduino
 // movement vars?
 constexpr unsigned int CPR = 480;
 
+constexpr int motorDeadzone = 0; // is a pwm value
+
 constexpr double wheelDia = 6.0325; // in cm
 constexpr double wheelCircumference = wheelDia * 3.14159;
 
 double targetDInM = 10.0;
-unsigned long targetD; // target dist in counts, set right after onboard setting is done
+long targetD; // target dist in counts, set right after onboard setting is done
 double targetT = 12.0;
 
-constexpr double accelInM = 1.2; // m/s^2
+constexpr double accelInM = 0.7;                                       // m/s^2
 extern const double accel = accelInM * 100 / wheelCircumference * CPR; // in counts/s^2
-constexpr double maxSpdInM = 1.5; // m/s
-constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR; // in counts/s
+constexpr double maxSpdInM = 1.5;                                      // m/s
+constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;  // in counts/s
 
 // PID pain
 constexpr double Kp_pos = 0;
 constexpr double Ki_pos = 0;
 constexpr double Kd_pos = 0;
-constexpr unsigned int posPIDInterval = 10000; // in microseconds
+constexpr long posPIDInterval = 10000; // in microseconds
 
 constexpr double Kp_vel = 0;
 constexpr double Ki_vel = 0;
 constexpr double Kd_vel = 0;
-constexpr unsigned int velPIDInterval = 1000; // in microseconds
+constexpr long velPIDInterval = 1000; // in microseconds
 
 double posPIDIn, posPIDOut, posPIDSetpt;
 double velPIDIn, velPIDOut, velPIDSetpt;
 
 // random timing/constrol shi
 // I set the last times to negative numbers to make sure the first PID loop that runs triggers
-// both pos and vel loops, and to make sure it runs right after start button pressed 
+// both pos and vel loops, and to make sure it runs right after start button pressed
 long lastPosPIDTime = -2 * posPIDInterval; // in microseconds
 long lastVelPIDTime = -2 * velPIDInterval; // in microseconds
 unsigned long startTime;
@@ -94,22 +96,17 @@ PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // drive motor left or right given a value from -255 to 255
-void driveMotor(int pwm) {
-  if(pwm >= 0) {
-    motor.TurnRight(pwm);
+void driveMotor(int PIDVal) {
+  if(PIDVal >= 0) {
+    motor.TurnRight(PIDVal + motorDeadzone);
   } else {
-    motor.TurnLeft(-pwm);
+    motor.TurnLeft(-PIDVal - motorDeadzone);
   }
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println(F("------------Beginning Setup------------"));
-
-  // level shifter garbage
-  pinMode(LVL_SHIFTER_OE, OUTPUT);
-  digitalWrite(LVL_SHIFTER_OE, HIGH);
-  Serial.println(F("level shifter enabled"));
 
   // reset encoder value
   ESP32Encoder::useInternalWeakPullResistors = puType::up;
@@ -127,7 +124,7 @@ void setup() {
 
   // configure PID
   posPID.SetOutputLimits(-maxSpd, maxSpd);
-  velPID.SetOutputLimits(-255, 255);
+  velPID.SetOutputLimits(-255 + motorDeadzone, 255 - motorDeadzone);
   posPID.SetMode(AUTOMATIC);
   velPID.SetMode(AUTOMATIC);
   Serial.println(F("PID configured"));
@@ -213,7 +210,7 @@ void loop() {
   } else if(controls.ctrlsActive()) {
     // ts else if runs to set the targetD and targetT using controls object
     delay(10);
-    
+
     if(controls.update()) {
       display.clearDisplay();
       display.setCursor(0, 0);
