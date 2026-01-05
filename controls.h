@@ -1,3 +1,7 @@
+/*
+basically an object that helps read a rotary encoder w/ button so target time
+and target distance can be set while the vehicle is active instead of preprogrammed
+*/
 #ifndef CONTROLS_H
 #define CONTROLS_H
 

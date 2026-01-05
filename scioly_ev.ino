@@ -1,8 +1,8 @@
 /*
 hehe I love PID trust
 
-also once the arduino is on for like 35 min the ev will prob start tweaking the shit out bc
-i think micros() overflows and will probably have to restart arduino
+also once the esp32 is on for like 71 min the ev will prob start tweaking out bc
+i think micros() overflows and will probably have to restart the esp32
 
 TODO: see if u can change pos PID clamping to the calculated trapezoidal max velocity
 later in the script when distance and time are set
@@ -71,7 +71,7 @@ constexpr long velPIDInterval = 1000; // in microseconds
 double posPIDIn, posPIDOut, posPIDSetpt;
 double velPIDIn, velPIDOut, velPIDSetpt;
 
-// random timing/constrol shi
+// random timing/constrol stuff
 long lastPosPIDTime = 0; // in microseconds
 long lastVelPIDTime = 0; // in microseconds
 unsigned long startTime;
@@ -87,7 +87,7 @@ BTS7960 motor(L_EN, R_EN, L_PWM, R_PWM);
 
 Controls controls(targetDInM, targetT, CTRL_ENC_A, CTRL_ENC_B, CTRL_ENC_BTN);
 
-Trajectory *traj = nullptr; // idk what pointers are so idk if i should be using them bc memory leaks or some shi
+Trajectory *traj = nullptr; // idk what pointers are so idk if i should be using them bc memory leaks or something
 
 PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
 PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);

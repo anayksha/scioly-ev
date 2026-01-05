@@ -1,13 +1,14 @@
 /*
-will have to check what type variables have to be for performance
-bc using doubles for time and vel might be unnecessary
+This is a file for the trajectory class, basically a trajectory object can be created from target time and 
+target distance and this object has methods that give the ideal position or ideal velocity the ev should be at
+given a certain amount of time
 
 The setup of the calculations can be found here: https://www.overleaf.com/read/zccntryzrtrq#407659
 And the desmos graph to visualze and  verify the solution can be found here: https://www.desmos.com/calculator/avxj6yh4fy
 I am NOT planning to type the derivation itself into overleaf
 
-TODO: rn distances is precalculated for calculations, consider doing that for
-time instead of having time intervals
+TODO: rn some distances is precalculated for calculations, consider doing that for
+time instead of having time intervals for performance
 */
 
 #ifndef TRAJECTORY_H
