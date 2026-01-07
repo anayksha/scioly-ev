@@ -193,7 +193,6 @@ void loop() {
       display.setCursor(0, 0);
       display.println("Acc dist: " + distTraveled);
       display.println("Acc time: " + timeTraveled);
-      delay(10000);
 
       // reset vars
       running = false;
