@@ -176,7 +176,7 @@ void loop() {
 
       velPIDSetpt = traj->getTargetVel(runTime * 0.000001) + posPIDOut;
 
-      posPID.Compute(); // sets velPIDOut in-place btw
+      velPID.Compute(); // sets velPIDOut in-place btw
 
       driveMotor(velPIDOut);
     }
