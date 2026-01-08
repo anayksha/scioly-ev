@@ -126,6 +126,8 @@ void setup() {
   velPID.SetOutputLimits(-255 + motorDeadzone, 255 - motorDeadzone);
   posPID.SetMode(AUTOMATIC);
   velPID.SetMode(AUTOMATIC);
+  posPID.SetSampleTime(1); // needed bc the PID has an internal timer to limit how often ts called
+  velPID.SetSampleTime(1); // needed bc the PID has an internal timer to limit how often ts called
   Serial.println(F("PID configured"));
 
   // configure display
