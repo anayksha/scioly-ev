@@ -6,7 +6,10 @@ i think micros() overflows and will probably have to restart the esp32
 
 TODO: see if u can change pos PID clamping to the calculated trapezoidal max velocity
 later in the script when distance and time are set
-TODO: also change the encoder used for controlling the vehicle to use ESP32Encoder
+TODO: change with first order IIR filter and longer duration velocity calculations
+possibly us 20-30ms vel calc intervals and a time constant of 20-40ms for IIR.
+should probably add a separate interval variable for vel cacluations and a
+function that does all this
 */
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -61,12 +64,12 @@ constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;  // in cou
 constexpr double Kp_pos = 0;
 constexpr double Ki_pos = 0;
 constexpr double Kd_pos = 0;
-constexpr long posPIDInterval = 10000; // in microseconds
+constexpr long posPIDInterval = 40000; // in microseconds
 
 constexpr double Kp_vel = 0;
 constexpr double Ki_vel = 0;
 constexpr double Kd_vel = 0;
-constexpr long velPIDInterval = 1000; // in microseconds
+constexpr long velPIDInterval = 4000; // in microseconds
 
 double posPIDIn, posPIDOut, posPIDSetpt;
 double velPIDIn, velPIDOut, velPIDSetpt;
