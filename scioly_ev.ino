@@ -43,7 +43,7 @@ TODO: also change the encoder used for controlling the vehicle to use ESP32Encod
 // movement vars?
 constexpr int CPR = 480;
 
-constexpr int motorDeadzone = 0; // is a pwm value
+constexpr int motorDeadzone = 35; // is a pwm value
 
 constexpr double wheelDia = 6.0325; // in cm
 constexpr double wheelCircumference = wheelDia * 3.14159265;
@@ -97,9 +97,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 // drive motor left or right given a value from -255 to 255
 void driveMotor(int PIDVal) {
   if(PIDVal >= 0) {
-    motor.TurnRight(PIDVal + motorDeadzone);
+    motor.TurnLeft(PIDVal + motorDeadzone);
   } else {
-    motor.TurnLeft(-PIDVal - motorDeadzone);
+    motor.TurnRight(-PIDVal - motorDeadzone);
   }
 }
 
@@ -109,7 +109,7 @@ void setup() {
 
   // reset encoder value
   ESP32Encoder::useInternalWeakPullResistors = puType::up;
-  motorEnc.attachFullQuad(MTR_ENC_A, MTR_ENC_B);
+  motorEnc.attachFullQuad(MTR_ENC_B, MTR_ENC_A);
   motorEnc.clearCount();
   Serial.println(F("encoder configured"));
 
