@@ -41,7 +41,7 @@ TODO: also change the encoder used for controlling the vehicle to use ESP32Encod
 #define SCREEN_ADDRESS 0x3C
 
 // movement vars?
-constexpr int CPR = 480;
+constexpr int CPR = 445;
 
 constexpr int motorDeadzone = 35; // is a pwm value
 
