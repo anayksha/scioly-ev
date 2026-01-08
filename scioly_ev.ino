@@ -168,7 +168,8 @@ void loop() {
     // vel loop
     if(runTime - lastVelPIDTime >= velPIDInterval || lastVelPIDTime == 0) {
       long currEncVal = motorEnc.getCount();
-      velPIDIn = (currEncVal - lastEncVal) / (runTime - lastVelPIDTime); // calc curr velocity as early as possible
+      double dt = 0.000001 * (runTime - lastVelPIDTime);
+      velPIDIn = (currEncVal - lastEncVal) / dt; // calc curr velocity as early as possible
       lastEncVal = currEncVal;
 
       lastVelPIDTime = runTime; // reset time early so intervals are accurate
