@@ -4,6 +4,8 @@ Controls::Controls(double &targetD, double &targetT, uint8_t encA, uint8_t encB,
   : targetD(targetD), targetT(targetT), btnPin(btn)
 {
   ctrlEnc.attachFullQuad(encA, encB);
+
+  pinMode(btn, INPUT_PULLUP);
   
   reset();
 }
@@ -55,6 +57,9 @@ bool Controls::update() {
     }
     btnPressed = currBtnState;
   }
-
+  if(updated) {
+    Serial.println("enc val: " + String(encVal));
+    Serial.println("btn state: " + String(currBtnState));
+  }
   return updated;
 }
