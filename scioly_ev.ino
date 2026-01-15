@@ -20,6 +20,7 @@ function that does all this
 
 #include "trajectory.h"
 #include "controls.h"
+#include "IIR.h"
 
 // rotary encoder pins
 #define MTR_ENC_A 32
@@ -51,14 +52,17 @@ constexpr int motorDeadzone = 35; // is a pwm value
 constexpr double wheelDia = 6.0325; // in cm
 constexpr double wheelCircumference = wheelDia * 3.14159265;
 
-double targetDInM = 8.0;
+double targetDInM = 5.0;
 long targetD; // target dist in counts, set right after onboard setting is done
-double targetT = 12.0;
+double targetT = 8.0;
 
 constexpr double accelInM = 0.7;                                       // m/s^2
 extern const double accel = accelInM * 100 / wheelCircumference * CPR; // in counts/s^2
 constexpr double maxSpdInM = 1.5;                                      // m/s
 constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;  // in counts/s
+
+// vel smoothing thing
+constexpr int timeConst = 34;  // in ms
 
 // PID pain
 constexpr double Kp_pos = 0;
@@ -66,7 +70,7 @@ constexpr double Ki_pos = 0;
 constexpr double Kd_pos = 0;
 constexpr long posPIDInterval = 40000; // in microseconds
 
-constexpr double Kp_vel = 0;
+constexpr double Kp_vel = 0.16;
 constexpr double Ki_vel = 0;
 constexpr double Kd_vel = 0;
 constexpr long velPIDInterval = 4000; // in microseconds
@@ -94,6 +98,8 @@ Trajectory *traj = nullptr; // idk what pointers are so idk if i should be using
 
 PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
 PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
+
+IIR velFilter(velPIDInterval / 1000, timeConst);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -173,13 +179,14 @@ void loop() {
     // vel loop
     if(runTime - lastVelPIDTime >= velPIDInterval || lastVelPIDTime == 0) {
       long currEncVal = motorEnc.getCount();
-      double dt = 0.000001 * (runTime - lastVelPIDTime);
-      velPIDIn = (currEncVal - lastEncVal) / dt; // calc curr velocity as early as possible
+      double dt = 1e-6 * (runTime - lastVelPIDTime);
+      double measuredVel = (currEncVal - lastEncVal) / dt;
+      velPIDIn = velFilter.getFilteredVal(measuredVel); // calc curr velocity as early as possible
       lastEncVal = currEncVal;
 
       lastVelPIDTime = runTime; // reset time early so intervals are accurate
 
-      velPIDSetpt = traj->getTargetVel(runTime * 0.000001) + posPIDOut;
+      velPIDSetpt = traj->getTargetVel(runTime * 1e-6);  // + posPIDOut;
 
       velPID.Compute(); // sets velPIDOut in-place btw
 
@@ -199,6 +206,7 @@ void loop() {
       display.setCursor(0, 0);
       display.println("Acc dist: " + distTraveled);
       display.println("Acc time: " + timeTraveled);
+      display.display();
 
       // reset vars
       running = false;

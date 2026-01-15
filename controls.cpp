@@ -57,6 +57,9 @@ bool Controls::update() {
     }
     btnPressed = currBtnState;
   }
-
+  if(updated) {
+    Serial.println("enc val: " + String(encVal));
+    Serial.println("btn state: " + String(currBtnState));
+  }
   return updated;
 }
