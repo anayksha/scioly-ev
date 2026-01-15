@@ -29,7 +29,7 @@ bool Controls::update() {
   long encVal = ctrlEnc.getCount();
 
   // if encoder position changed change that
-  if(encVal != 0) {
+  if(abs(encVal) >= 4) {
     // ts is kinda broken at the moment bc it doesn't loop through digits,
     // it only adds and subtracts, so it can change the upper digits
     if(mode == DIST_SET) {
@@ -37,7 +37,8 @@ bool Controls::update() {
     } else if(mode == TIME_SET) { // unnecessary "if" but for if i accidentally call update() when mode is READY_TO_RUN
       targetT += (encVal / 4) * pow(0.1, decimal);
     }
-    ctrlEnc.clearCount();
+    
+    ctrlEnc.setCount(encVal % 4);
     updated = true;
   }
 
