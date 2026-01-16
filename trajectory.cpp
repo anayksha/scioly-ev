@@ -22,7 +22,7 @@ double Trajectory::getTargetVel(double t) {
   if(t < 2*t_a + t_c) {
     return -accel * (t - t_a - t_c) + v_cruise;
   }
-  return 0;
+  return 50; // needed bc ts usually doesnt go past the finish
 }
 
 long Trajectory::getTargetPos(double t) {

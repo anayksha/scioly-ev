@@ -47,33 +47,33 @@ function that does all this
 // movement vars?
 constexpr int CPR = 445;
 
-constexpr int motorDeadzone = 35; // is a pwm value
+constexpr int motorDeadzone = 0; // is a pwm value
 
 constexpr double wheelDia = 6.0325; // in cm
 constexpr double wheelCircumference = wheelDia * 3.14159265;
 
-double targetDInM = 5.0;
+double targetDInM = 8.0;
 long targetD; // target dist in counts, set right after onboard setting is done
-double targetT = 8.0;
+double targetT = 14.0;
 
-constexpr double accelInM = 0.7;                                       // m/s^2
+constexpr double accelInM = 0.8;                                       // m/s^2
 extern const double accel = accelInM * 100 / wheelCircumference * CPR; // in counts/s^2
-constexpr double maxSpdInM = 1.5;                                      // m/s
+constexpr double maxSpdInM = 1.4;                                      // m/s
 constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;  // in counts/s
 
 // vel smoothing thing
-constexpr int timeConst = 34;  // in ms
+constexpr int timeConst = 40;  // in ms
 
 // PID pain
-constexpr double Kp_pos = 0;
+constexpr double Kp_pos = 4.7;
 constexpr double Ki_pos = 0;
 constexpr double Kd_pos = 0;
-constexpr long posPIDInterval = 40000; // in microseconds
+constexpr long posPIDInterval = 50000; // in microseconds
 
-constexpr double Kp_vel = 0.16;
-constexpr double Ki_vel = 0;
-constexpr double Kd_vel = 0;
-constexpr long velPIDInterval = 4000; // in microseconds
+constexpr double Kp_vel = 0.135;
+constexpr double Ki_vel = 6.8;
+constexpr double Kd_vel = 0.00015;
+constexpr long velPIDInterval = 5000; // in microseconds
 
 double posPIDIn, posPIDOut, posPIDSetpt;
 double velPIDIn, velPIDOut, velPIDSetpt;
@@ -197,11 +197,13 @@ void loop() {
     if(motorEnc.getCount() >= targetD) {
       // disable motor
       motor.Stop();
+      String timeTraveled = String((micros() - startTime) * 0.000001, 3);
+
+      delay(200);
       motor.Disable();
 
       // print results
-      String timeTraveled = String((micros() - startTime) * 0.000001, 3);
-      String distTraveled = String(motorEnc.getCount() / (double)CPR * wheelCircumference * 0.01, 3);
+      String distTraveled = String(motorEnc.getCount() / (double) CPR * wheelCircumference * 0.01, 3);
       display.clearDisplay();
       display.setCursor(0, 0);
       display.println("Acc dist: " + distTraveled);
