@@ -52,20 +52,20 @@ constexpr int motorDeadzone = 0; // is a pwm value
 constexpr double wheelDia = 6.0325; // in cm
 constexpr double wheelCircumference = wheelDia * 3.14159265;
 
-double targetDInM = 8.0;
+double targetDInM = 8;
 long targetD; // target dist in counts, set right after onboard setting is done
-double targetT = 14.0;
+double targetT = 14;
 
-constexpr double accelInM = 0.8;                                       // m/s^2
+constexpr double accelInM = 0.7;                                       // m/s^2
 extern const double accel = accelInM * 100 / wheelCircumference * CPR; // in counts/s^2
 constexpr double maxSpdInM = 1.4;                                      // m/s
 constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;  // in counts/s
 
 // vel smoothing thing
-constexpr int timeConst = 40;  // in ms
+constexpr int timeConst = 40; // in ms
 
 // PID pain
-constexpr double Kp_pos = 54.7;
+constexpr double Kp_pos = 3.7;
 constexpr double Ki_pos = 0;
 constexpr double Kd_pos = 0;
 constexpr long posPIDInterval = 50000; // in microseconds
@@ -99,7 +99,7 @@ Trajectory *traj = nullptr; // idk what pointers are so idk if i should be using
 PID posPID(&posPIDIn, &posPIDOut, &posPIDSetpt, Kp_pos, Ki_pos, Kd_pos, DIRECT);
 PID velPID(&velPIDIn, &velPIDOut, &velPIDSetpt, Kp_vel, Ki_vel, Kd_vel, DIRECT);
 
-IIR velFilter(velPIDInterval / 1000, timeConst);
+IIR velFilter(velPIDInterval * 1e-3, timeConst);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -178,6 +178,10 @@ void loop() {
       posPIDIn = motorEnc.getCount();
 
       posPID.Compute(); // sets posPIDOut in-place btw
+
+      // Serial.print("zero:0");
+      // Serial.print(",");
+      // Serial.println("posError:" + String(posPIDSetpt - posPIDIn));
     }
 
     // vel loop
@@ -190,17 +194,11 @@ void loop() {
 
       lastVelPIDTime = runTime; // reset time early so intervals are accurate
 
-      velPIDSetpt = traj->getTargetVel(runTime * 1e-6);  // + posPIDOut;
+      velPIDSetpt = traj->getTargetVel(runTime * 1e-6) + posPIDOut;
 
       velPID.Compute(); // sets velPIDOut in-place btw
 
       driveMotor(velPIDOut);
-
-      Serial.print("zero:0");
-      Serial.print(",");
-      Serial.print("velPIDSetpt:" + String(velPIDSetpt));
-      Serial.print(",");
-      Serial.println("posError:" + String(posPIDSetpt - posPIDIn));
 
       // Serial.print("velPIDOut:" + String(velPIDOut));
       // Serial.print(",");
