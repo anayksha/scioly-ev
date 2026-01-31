@@ -5,10 +5,12 @@ Trajectory::Trajectory(long targetD, long targetT) {
   this->targetT = targetT; 
 
   t_a = (accel * targetT - sqrt(pow(accel * targetT, 2) - (4 * accel * targetD))) / (2*accel);
-  t_c = targetT - 2*t_a;
+  t_c = targetT - (2*t_a);
   v_cruise = accel * t_a;
 
-  phase1Dist = getTargetPos(t_a);
+  Serial.println(String(2*t_a + t_c));
+  
+  phase1Dist = 0.5 * accel * pow(t_a, 2);
   phase2Dist = v_cruise * t_c + phase1Dist;
 }
 

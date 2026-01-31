@@ -65,7 +65,7 @@ constexpr double maxSpd = maxSpdInM * 100 / wheelCircumference * CPR;  // in cou
 constexpr int timeConst = 40;  // in ms
 
 // PID pain
-constexpr double Kp_pos = 4.7;
+constexpr double Kp_pos = 54.7;
 constexpr double Ki_pos = 0;
 constexpr double Kd_pos = 0;
 constexpr long posPIDInterval = 50000; // in microseconds
@@ -103,12 +103,16 @@ IIR velFilter(velPIDInterval / 1000, timeConst);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
+bool targetDReached() {
+  return (targetD < 0 && motorEnc.getCount() <= targetD) || (targetD >= 0 && motorEnc.getCount() >= targetD);
+}
+
 // drive motor left or right given a value from -255 to 255
 void driveMotor(int PIDVal) {
   if(PIDVal >= 0) {
-    motor.TurnLeft(PIDVal + motorDeadzone);
+    motor.TurnRight(PIDVal + motorDeadzone);
   } else {
-    motor.TurnRight(-PIDVal - motorDeadzone);
+    motor.TurnLeft(-PIDVal - motorDeadzone);
   }
 }
 
@@ -118,7 +122,7 @@ void setup() {
 
   // reset encoder value
   ESP32Encoder::useInternalWeakPullResistors = puType::up;
-  motorEnc.attachFullQuad(MTR_ENC_B, MTR_ENC_A);
+  motorEnc.attachFullQuad(MTR_ENC_A, MTR_ENC_B);
   motorEnc.clearCount();
   Serial.println(F("encoder configured"));
 
@@ -191,10 +195,24 @@ void loop() {
       velPID.Compute(); // sets velPIDOut in-place btw
 
       driveMotor(velPIDOut);
+
+      Serial.print("zero:0");
+      Serial.print(",");
+      Serial.print("velPIDSetpt:" + String(velPIDSetpt));
+      Serial.print(",");
+      Serial.println("posError:" + String(posPIDSetpt - posPIDIn));
+
+      // Serial.print("velPIDOut:" + String(velPIDOut));
+      // Serial.print(",");
+      // Serial.print("measuredVel:" + String(measuredVel));
+      // Serial.print(",");
+      // Serial.print("filteredVel:" + String(velPIDIn));
+      // Serial.print(",");
+      // Serial.println("velSetpt:" + String(velPIDSetpt));
     }
 
     // TODO: prob need a better termination condition
-    if(motorEnc.getCount() >= targetD) {
+    if(targetDReached()) {
       // disable motor
       motor.Stop();
       String timeTraveled = String((micros() - startTime) * 0.000001, 3);
